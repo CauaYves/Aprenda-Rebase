@@ -406,9 +406,15 @@ export class GitRepository {
 
     const commitsToRebase = this.getCommitsBetween(commonAncestor, currentHeadId);
 
+    const steps: import("./types").SerializableRepository[] = [];
+
     // Create new commits on top of onto
     let currentBase = ontoCommitId;
     const newCommitIds: string[] = [];
+
+    const originalHead = this.state.head;
+    this.state.head = { type: "detached", commitId: currentBase };
+    steps.push(this.toSerializable());
 
     for (const oldCommit of commitsToRebase) {
       const newCommit: Commit = {
@@ -416,15 +422,20 @@ export class GitRepository {
         message: oldCommit.message,
         parents: [currentBase],
         timestamp: Date.now(),
-        branch: this.state.head.type === "branch" ? this.state.head.name : undefined,
+        branch: originalHead.type === "branch" ? originalHead.name : undefined,
+        copiedFrom: oldCommit.id,
       };
       this.state.commits.set(newCommit.id, newCommit);
       this.state.commitOrder.push(newCommit.id);
       newCommitIds.push(newCommit.id);
       currentBase = newCommit.id;
+      
+      this.state.head = { type: "detached", commitId: currentBase };
+      steps.push(this.toSerializable());
     }
 
     // Update branch
+    this.state.head = originalHead;
     if (this.state.head.type === "branch") {
       const branch = this.getBranch(this.state.head.name);
       if (branch) {
@@ -433,11 +444,15 @@ export class GitRepository {
     } else {
       this.state.head = { type: "detached", commitId: currentBase };
     }
+    
+    // Add final snapshot with head officially moved
+    steps.push(this.toSerializable());
 
     return {
       success: true,
       message: `Rebase feito com sucesso e refs/heads/${this.state.head.type === "branch" ? this.state.head.name : "HEAD"} atualizado.\n${commitsToRebase.length} commit(s) reaplicado(s) sobre ${ontoCommitId.slice(0, 7)}`,
       type: "success",
+      steps,
     };
   }
 
@@ -461,6 +476,11 @@ export class GitRepository {
     let currentBase = ontoCommitId;
     let squashMessages: string[] = [];
     let rebasedCount = 0;
+    const steps: import("./types").SerializableRepository[] = [];
+
+    const originalHead = this.state.head;
+    this.state.head = { type: "detached", commitId: currentBase };
+    steps.push(this.toSerializable());
 
     for (const entry of entries) {
       const oldCommit = this.state.commits.get(entry.commitId);
@@ -476,15 +496,19 @@ export class GitRepository {
               parents: [currentBase],
               timestamp: Date.now(),
               branch:
-                this.state.head.type === "branch"
-                  ? this.state.head.name
+                originalHead.type === "branch"
+                  ? originalHead.name
                   : undefined,
+              copiedFrom: entry.commitId,
             };
             this.state.commits.set(squashedCommit.id, squashedCommit);
             this.state.commitOrder.push(squashedCommit.id);
             currentBase = squashedCommit.id;
             squashMessages = [];
             rebasedCount++;
+            
+            this.state.head = { type: "detached", commitId: currentBase };
+            steps.push(this.toSerializable());
           }
 
           const newCommit: Commit = {
@@ -493,14 +517,18 @@ export class GitRepository {
             parents: [currentBase],
             timestamp: Date.now(),
             branch:
-              this.state.head.type === "branch"
-                ? this.state.head.name
+              originalHead.type === "branch"
+                ? originalHead.name
                 : undefined,
+            copiedFrom: entry.commitId,
           };
           this.state.commits.set(newCommit.id, newCommit);
           this.state.commitOrder.push(newCommit.id);
           currentBase = newCommit.id;
           rebasedCount++;
+          
+          this.state.head = { type: "detached", commitId: currentBase };
+          steps.push(this.toSerializable());
           break;
         }
         case "squash": {
@@ -514,14 +542,18 @@ export class GitRepository {
             parents: [currentBase],
             timestamp: Date.now(),
             branch:
-              this.state.head.type === "branch"
-                ? this.state.head.name
+              originalHead.type === "branch"
+                ? originalHead.name
                 : undefined,
+            copiedFrom: entry.commitId,
           };
           this.state.commits.set(rewordedCommit.id, rewordedCommit);
           this.state.commitOrder.push(rewordedCommit.id);
           currentBase = rewordedCommit.id;
           rebasedCount++;
+          
+          this.state.head = { type: "detached", commitId: currentBase };
+          steps.push(this.toSerializable());
           break;
         }
         case "drop": {
@@ -535,14 +567,18 @@ export class GitRepository {
             parents: [currentBase],
             timestamp: Date.now(),
             branch:
-              this.state.head.type === "branch"
-                ? this.state.head.name
+              originalHead.type === "branch"
+                ? originalHead.name
                 : undefined,
+            copiedFrom: entry.commitId,
           };
           this.state.commits.set(editedCommit.id, editedCommit);
           this.state.commitOrder.push(editedCommit.id);
           currentBase = editedCommit.id;
           rebasedCount++;
+          
+          this.state.head = { type: "detached", commitId: currentBase };
+          steps.push(this.toSerializable());
           break;
         }
       }
@@ -556,15 +592,19 @@ export class GitRepository {
         parents: [currentBase],
         timestamp: Date.now(),
         branch:
-          this.state.head.type === "branch" ? this.state.head.name : undefined,
+          originalHead.type === "branch" ? originalHead.name : undefined,
       };
       this.state.commits.set(squashedCommit.id, squashedCommit);
       this.state.commitOrder.push(squashedCommit.id);
       currentBase = squashedCommit.id;
       rebasedCount++;
+      
+      this.state.head = { type: "detached", commitId: currentBase };
+      steps.push(this.toSerializable());
     }
 
     // Update branch
+    this.state.head = originalHead;
     if (this.state.head.type === "branch") {
       const branch = this.getBranch(this.state.head.name);
       if (branch) {
@@ -573,11 +613,14 @@ export class GitRepository {
     } else {
       this.state.head = { type: "detached", commitId: currentBase };
     }
+    
+    steps.push(this.toSerializable());
 
     return {
       success: true,
       message: `Rebase interativo concluído com sucesso. ${rebasedCount} commit(s) processado(s).`,
       type: "success",
+      steps,
     };
   }
 

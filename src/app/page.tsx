@@ -7,6 +7,7 @@ import { Terminal } from "@/components/terminal/Terminal";
 import { ChallengePanel } from "@/components/challenge/ChallengePanel";
 import { InteractiveRebaseModal } from "@/components/rebase/InteractiveRebaseModal";
 import { LevelCompleteModal } from "@/components/challenge/LevelCompleteModal";
+import { WelcomeModal } from "@/components/challenge/WelcomeModal";
 import { useRepository } from "@/hooks/useRepository";
 import { useTerminal } from "@/hooks/useTerminal";
 import { useLevel } from "@/hooks/useLevel";
@@ -29,7 +30,7 @@ export default function Home() {
     resetLevel,
   } = useLevel(1);
 
-  const { snapshot, runCommand, executeInteractiveRebase, reset, getRepo } =
+  const { snapshot, isAnimating, runCommand, executeInteractiveRebase, reset, getRepo } =
     useRepository(currentLevel?.initialState);
 
   const {
@@ -41,6 +42,9 @@ export default function Home() {
     getPreviousCommand,
     getNextCommand,
   } = useTerminal();
+
+  // Welcome / Intro Modal state
+  const [isWelcomeOpen, setIsWelcomeOpen] = useState(true);
 
   // Interactive rebase state
   const [rebaseModalOpen, setRebaseModalOpen] = useState(false);
@@ -291,9 +295,15 @@ export default function Home() {
             onCommand={handleCommand}
             getPreviousCommand={getPreviousCommand}
             getNextCommand={getNextCommand}
+            disabled={isAnimating}
           />
         </motion.div>
       </div>
+
+      <WelcomeModal
+        isOpen={isWelcomeOpen}
+        onClose={() => setIsWelcomeOpen(false)}
+      />
 
       {/* Interactive Rebase Modal */}
       <InteractiveRebaseModal

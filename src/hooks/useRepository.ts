@@ -8,6 +8,7 @@ export type RepositorySnapshot = SerializableRepository;
 
 export function useRepository(initialState?: SerializableRepository) {
   const repoRef = useRef<GitRepository | null>(null);
+  const [isAnimating, setIsAnimating] = useState(false);
   const [snapshot, setSnapshot] = useState<RepositorySnapshot>(() => {
     const repo = initialState
       ? GitRepository.fromSerializable(initialState)
@@ -21,6 +22,16 @@ export function useRepository(initialState?: SerializableRepository) {
       setSnapshot(repoRef.current.toSerializable());
     }
   }, []);
+
+  const processSteps = useCallback(async (steps: SerializableRepository[]) => {
+    setIsAnimating(true);
+    for (const step of steps) {
+      setSnapshot(step);
+      await new Promise((resolve) => setTimeout(resolve, 1200)); // 1.2s delay per rewrite step
+    }
+    updateSnapshot();
+    setIsAnimating(false);
+  }, [updateSnapshot]);
 
   const runCommand = useCallback(
     (input: string): CommandResult => {
@@ -47,7 +58,13 @@ export function useRepository(initialState?: SerializableRepository) {
       }
 
       const result = executeCommand(repoRef.current, parsed);
-      updateSnapshot();
+      
+      if (result.steps && result.steps.length > 0) {
+        processSteps(result.steps);
+      } else {
+        updateSnapshot();
+      }
+      
       return result;
     },
     [updateSnapshot]
@@ -59,7 +76,13 @@ export function useRepository(initialState?: SerializableRepository) {
         return { success: false, message: "Repository not initialized", type: "error" };
       }
       const result = repoRef.current.rebaseInteractive(onto, entries);
-      updateSnapshot();
+      
+      if (result.steps && result.steps.length > 0) {
+        processSteps(result.steps);
+      } else {
+        updateSnapshot();
+      }
+      
       return result;
     },
     [updateSnapshot]
@@ -77,6 +100,7 @@ export function useRepository(initialState?: SerializableRepository) {
 
   return {
     snapshot,
+    isAnimating,
     runCommand,
     executeInteractiveRebase,
     reset,

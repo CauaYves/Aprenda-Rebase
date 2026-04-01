@@ -6,6 +6,7 @@ export type Commit = {
   parents: string[];
   timestamp: number;
   branch?: string; // branch that created this commit
+  copiedFrom?: string; // origin commit ID this was cloned from (for rebase animation)
 };
 
 export type Branch = {
@@ -36,6 +37,7 @@ export type CommandResult = {
   success: boolean;
   message: string;
   type: "info" | "error" | "success" | "warning";
+  steps?: SerializableRepository[];
 };
 
 export type GitCommand =
@@ -54,7 +56,7 @@ export type GitCommand =
 
 // Serializable version of Repository for levels
 export type SerializableRepository = {
-  commits: { id: string; message: string; parents: string[]; timestamp: number; branch?: string }[];
+  commits: { id: string; message: string; parents: string[]; timestamp: number; branch?: string; copiedFrom?: string }[];
   branches: Branch[];
   head: HeadState;
   commitOrder: string[];

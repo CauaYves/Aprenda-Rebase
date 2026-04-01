@@ -12,6 +12,8 @@ type CommitNodeProps = {
   isNew?: boolean;
   branchLabels?: string[];
   headBranchName?: string;
+  originX?: number;
+  originY?: number;
 };
 
 export function CommitNode({
@@ -24,18 +26,32 @@ export function CommitNode({
   isNew = false,
   branchLabels = [],
   headBranchName,
+  originX,
+  originY,
 }: CommitNodeProps) {
   const radius = isHead ? 18 : 14;
 
+  const hasOrigin = originX !== undefined && originY !== undefined;
+  
+  const initialProps = isNew
+    ? {
+        scale: hasOrigin ? 1 : 0,
+        opacity: hasOrigin ? 0.3 : 0,
+        x: hasOrigin ? originX : x,
+        y: hasOrigin ? originY : y,
+      }
+    : { scale: 1, opacity: 1, x, y };
+
   return (
     <motion.g
-      initial={isNew ? { scale: 0, opacity: 0 } : { scale: 1, opacity: 1 }}
+      initial={initialProps}
       animate={{ scale: 1, opacity: 1, x, y }}
       transition={{
         type: "spring",
-        stiffness: 200,
-        damping: 20,
-        delay: isNew ? 0.2 : 0,
+        stiffness: hasOrigin ? 120 : 200,
+        damping: hasOrigin ? 15 : 20,
+        mass: hasOrigin ? 0.8 : 1,
+        delay: isNew && !hasOrigin ? 0.2 : 0,
       }}
     >
       {/* Glow effect for HEAD */}

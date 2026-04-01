@@ -39,6 +39,7 @@ type CommitData = {
   parents: string[];
   timestamp: number;
   branch?: string;
+  copiedFrom?: string;
 };
 
 type LayoutNode = {
@@ -48,6 +49,8 @@ type LayoutNode = {
   commit: CommitData;
   column: number;
   branchLabels: string[];
+  originX?: number;
+  originY?: number;
 };
 
 type LayoutEdge = {
@@ -142,6 +145,8 @@ export function GitGraph({ snapshot }: { snapshot: RepositorySnapshot }) {
       const y = paddingY + rowIndex * rowSpacing;
 
       positions.set(id, { x, y });
+      const originPos = commit.copiedFrom ? positions.get(commit.copiedFrom) : undefined;
+
       nodes.push({
         id,
         x,
@@ -149,6 +154,8 @@ export function GitGraph({ snapshot }: { snapshot: RepositorySnapshot }) {
         commit,
         column,
         branchLabels: branchTipMap.get(id) ?? [],
+        originX: originPos?.x,
+        originY: originPos?.y,
       });
     });
 
@@ -246,6 +253,8 @@ export function GitGraph({ snapshot }: { snapshot: RepositorySnapshot }) {
               branchColor={getBranchColor(node.commit.branch || "main")}
               branchLabels={node.branchLabels}
               headBranchName={headBranchName}
+              originX={node.originX}
+              originY={node.originY}
             />
           ))}
         </AnimatePresence>

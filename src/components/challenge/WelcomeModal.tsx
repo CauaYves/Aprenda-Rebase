@@ -1,13 +1,46 @@
 "use client";
 
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { GitGraph } from "@/components/graph/GitGraph";
+import { useRepository } from "@/hooks/useRepository";
+import type { SerializableRepository } from "@/lib/git-engine/types";
 
 type WelcomeModalProps = {
   isOpen: boolean;
   onClose: () => void;
 };
 
+const tutorialInitialState: SerializableRepository = {
+  commits: [
+    { id: "c1", message: "Initial commit", parents: [], timestamp: 1000, branch: "develop" },
+    { id: "c2", message: "Add Header", parents: ["c1"], timestamp: 2000, branch: "develop" },
+    { id: "c3", message: "Add Auth", parents: ["c2"], timestamp: 4000, branch: "develop" },
+    { id: "f1", message: "Build Feature UI", parents: ["c2"], timestamp: 3000, branch: "user/jhon/1243-integracao" },
+    { id: "f2", message: "Integrate API", parents: ["f1"], timestamp: 3500, branch: "user/jhon/1243-integracao" },
+  ],
+  branches: [
+    { name: "develop", tip: "c3" },
+    { name: "user/jhon/1243-integracao", tip: "f2" },
+  ],
+  head: { type: "branch", name: "user/jhon/1243-integracao" },
+  commitOrder: ["c1", "c2", "c3", "f1", "f2"],
+};
+
 export function WelcomeModal({ isOpen, onClose }: WelcomeModalProps) {
+  const { snapshot, isAnimating, runCommand, reset } = useRepository(tutorialInitialState);
+  const [hasRebased, setHasRebased] = useState(false);
+
+  const handleRunRebase = () => {
+    runCommand("git rebase develop");
+    setHasRebased(true);
+  };
+
+  const handleReset = () => {
+    reset(tutorialInitialState);
+    setHasRebased(false);
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -17,82 +50,80 @@ export function WelcomeModal({ isOpen, onClose }: WelcomeModalProps) {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="bg-[#1e1e2e] border border-white/10 rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto"
+            className="bg-[#1e1e2e] border border-white/10 rounded-xl shadow-2xl max-w-7xl w-full max-h-[96vh] flex flex-col md:flex-row overflow-hidden"
           >
-            <div className="p-8 space-y-6 text-gray-300 font-sans">
-              <div className="text-center pb-4 border-b border-white/5">
+            {/* Left Column: Text Info */}
+            <div className="p-8 md:w-1/2 flex flex-col space-y-6 text-gray-300 font-sans overflow-y-auto border-r border-white/10">
+              <div className="border-b border-white/5 pb-4">
                 <h1 className="text-3xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent mb-2">
                   Bem-vindo ao Git Rebase Simulator!
                 </h1>
-                <p className="text-gray-400 text-lg">
-                  Entendendo a reescrita de histórico antes de colocarmos a mão na massa.
+                <p className="text-gray-400 text-base">
+                  Entendendo a reescrita de histórico na prática.
                 </p>
               </div>
 
-              <div className="space-y-6">
-                <section>
-                  <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
-                    <span className="text-emerald-400">#</span> O que é o Rebase?
-                  </h2>
-                  <p className="leading-relaxed">
-                    Em sua essência, o <strong>Git Rebase</strong> pega uma série de commits de uma branch antiga e os <span className="text-emerald-300">"reaplica"</span> um por um em cima de uma nova base de código. Em vez de criar um commit de junção (como o <code className="bg-black/30 px-1.5 py-0.5 rounded text-sm text-emerald-400 font-mono">git merge</code> faz), o rebase literalmente <em>reescreve a história</em> daquele projeto, deixando tudo em uma linha reta limpa.
-                  </p>
-                </section>
+              <section>
+                <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
+                  <span className="text-emerald-400">#</span> O que é o Rebase?
+                </h2>
+                <p className="leading-relaxed text-sm">
+                  O <strong>Git Rebase</strong> pega uma série de commits e os <span className="text-emerald-300">"reaplica"</span> um por um em cima de uma nova base de código. Ele não une linhas, ele literalmente <em>reescreve a história</em> temporal.
+                </p>
+              </section>
 
-                <section>
-                  <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
-                    <span className="text-cyan-400">#</span> Para que serve?
-                  </h2>
-                  <ul className="list-disc pl-5 space-y-2 text-gray-300">
-                    <li><strong>Histórico Limpo:</strong> Evita rastros verbosos de <code className="bg-black/30 px-1.5 py-0.5 rounded text-sm text-cyan-400 font-mono">Merge branch 'main' into ...</code> que dificultam a leitura do log do Git.</li>
-                    <li><strong>Resolução de Conflitos Previa:</strong> Se várias pessoas mexeram na `main`, ao fazer rebase da sua feature em cima dela, você resolve os conflitos na sua própria área antes de tentar abrir um Pull Request.</li>
-                    <li><strong>Aprovação Rápida:</strong> Históricos lineares (uma bolinha depois da outra, sem teias de aranha complexas) facilitam a vida de quem está revisando código via Code Review.</li>
-                  </ul>
-                </section>
+              <section>
+                <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
+                  <span className="text-cyan-400">#</span> Por que e Quando utilizar?
+                </h2>
+                <ul className="list-disc pl-5 space-y-2 text-gray-300 text-sm">
+                  <li><strong>Histórico Limpo:</strong> Evita "nós" de merge que dificultam a leitura visual.</li>
+                  <li><strong>Antes do PR:</strong> Alinhe seu código atrasado com o da <code>main</code> mais atual da equipe, resolvendo conflitos antes na sua máquina.</li>
+                  <li><strong className="text-amber-400">Aviso Crítico:</strong> NUNCA dê rebase em branches que outras pessoas já publicaram e usam. Ele altera "Hashes" de commits!</li>
+                </ul>
+              </section>
+              
+              <section className="bg-black/20 p-5 rounded-lg border border-white/5 text-sm">
+                <h2 className="text-lg font-bold text-white mb-3">O Simulador (à direita)</h2>
+                <p className="mb-3">
+                  A equipe subiu novidades na `develop`, fazendo com que os commits da sua `feature` ficassem para trás. Em vez de dar Merge, dê um Rebase!
+                </p>
+                <div className="space-y-4">
+                  <button
+                    onClick={handleRunRebase}
+                    disabled={isAnimating || hasRebased}
+                    className="w-full px-6 py-2 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold rounded transition-colors"
+                  >
+                    {isAnimating ? "Processando..." : hasRebased ? "Rebase Concluído ✓" : "▶ Executar `git rebase develop`"}
+                  </button>
+                  <button
+                    onClick={handleReset}
+                    disabled={isAnimating}
+                    className="w-full px-6 py-2 bg-transparent border border-gray-600 hover:border-gray-400 text-white rounded transition-colors"
+                  >
+                    ↺ Reiniciar Animação
+                  </button>
+                </div>
+              </section>
 
-                <section>
-                  <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
-                    <span className="text-amber-400">#</span> Quando utilizar?
-                  </h2>
-                  <p className="leading-relaxed mb-4">
-                    Utilize o Git Rebase em <strong>branches locais e particulares</strong> que ainda não foram revisadas ou mescladas por outras pessoas. <br/>
-                    A Regra de Ouro do Rebase é: <strong className="text-amber-400">NUNCA faça rebase sobre branches públicas como a `main`</strong>. O Rebase muda hashes de commits. Modificar a base que outras pessoas já baixaram resulta num pandemônio de conflitos!
-                  </p>
-                </section>
-
-                <section className="bg-black/20 p-5 rounded-lg border border-white/5">
-                  <h2 className="text-xl font-bold text-white mb-3">Exemplo Prático</h2>
-                  <p className="text-sm mb-3">
-                    Imagine que você clonou a `main` e criou uma branch seguindo um padrão rigoroso corporativo:
-                  </p>
-                  <div className="bg-[#181825] p-3 rounded font-mono text-xs text-gray-400 mb-4 pb-3 border-l-2 border-emerald-400">
-                    <span className="text-emerald-400">~/repo $</span> git switch -c user/eu/15843-user-story-integracao/17323-task-para-tal-coisa
-                  </div>
-
-                  <p className="text-sm mb-3">
-                    Você comitou duas vezes nela, mas enquanto isso, seus colegas de trabalho enviaram três novas alterações para a `main`. Sua branch está velha! Em vez de usar merge pra trazer as fofocas, o fluxo ensinado pelas maiores empresas como Google ou Microsoft é:
-                  </p>
-                  <div className="bg-[#181825] p-3 rounded font-mono text-xs text-gray-400 border-l-2 border-emerald-400 space-y-1">
-                    <div><span className="text-gray-500"># Baixe os commits novos que vieram da sua equipe</span></div>
-                    <div><span className="text-emerald-400">~/repo $</span> git fetch origin</div>
-                    <div><span className="text-gray-500"># Atualize a main da sua máquina</span></div>
-                    <div><span className="text-emerald-400">~/repo $</span> git switch main && git pull</div>
-                    <div><span className="text-gray-500"># Volte para a sua branch longa corporativa</span></div>
-                    <div><span className="text-emerald-400">~/repo $</span> git switch user/eu/15843-user-story-integracao/17323-task-para-tal-coisa</div>
-                    <div><span className="text-gray-500"># Desmonte seus dois commits originários, pule para a ponta atualizada da main, e recrie seus commits lá em cima magicamente!</span></div>
-                    <div><span className="text-emerald-400">~/repo $</span> git rebase main</div>
-                  </div>
-                </section>
-              </div>
-
-              <div className="pt-6 flex justify-center border-t border-white/5 mt-4">
+              <div className="pt-4 flex justify-center mt-auto">
                 <button
                   onClick={onClose}
-                  className="px-8 py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-lg transition-colors duration-200 outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2 focus:ring-offset-[#1e1e2e]"
+                  className="px-8 py-3 w-full bg-white/10 hover:bg-white/20 text-white font-bold rounded-lg transition-colors border border-white/10"
                 >
-                  Entendi, bora codar!
+                  Ir para as Fases do Jogo →
                 </button>
               </div>
+            </div>
+
+            {/* Right Column: Live Git Graph */}
+            <div className="md:w-1/2 bg-[#181825] flex justify-center relative p-8">
+               <div className="absolute inset-x-0 top-6 text-center text-gray-500 font-mono text-sm z-10">
+                 Demonstração Interativa
+               </div>
+               <div className="w-full h-full border border-white/10 rounded overflow-hidden relative bg-[#0f0f17]">
+                 <GitGraph snapshot={snapshot} />
+               </div>
             </div>
           </motion.div>
         </div>

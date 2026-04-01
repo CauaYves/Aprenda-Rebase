@@ -266,16 +266,6 @@ export default function Home() {
               <span className="text-xs text-gray-500 font-mono">
                 grafo-de-commits
               </span>
-              <div className="flex items-center gap-2 text-[10px] text-gray-600">
-                <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-cyan-400" />
-                  main
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-violet-400" />
-                  feature
-                </span>
-              </div>
             </div>
             <div className="h-[calc(100%-40px)]">
               <GitGraph snapshot={snapshot} />

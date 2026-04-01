@@ -9,7 +9,6 @@ type CommitNodeProps = {
   message: string;
   isHead: boolean;
   branchColor: string;
-  isNew?: boolean;
   branchLabels?: string[];
   headBranchName?: string;
   originX?: number;
@@ -23,7 +22,6 @@ export function CommitNode({
   message,
   isHead,
   branchColor,
-  isNew = false,
   branchLabels = [],
   headBranchName,
   originX,
@@ -33,14 +31,15 @@ export function CommitNode({
 
   const hasOrigin = originX !== undefined && originY !== undefined;
   
-  const initialProps = isNew
+  const initialProps = hasOrigin
     ? {
-        scale: hasOrigin ? 1 : 0,
-        opacity: hasOrigin ? 0.3 : 0,
-        x: hasOrigin ? originX : x,
-        y: hasOrigin ? originY : y,
+        scale: 1,
+        opacity: 0,
+        x: originX,
+        y: originY,
+        zIndex: 50,
       }
-    : { scale: 1, opacity: 1, x, y };
+    : { scale: 0, opacity: 0, x, y };
 
   return (
     <motion.g
@@ -48,10 +47,10 @@ export function CommitNode({
       animate={{ scale: 1, opacity: 1, x, y }}
       transition={{
         type: "spring",
-        stiffness: hasOrigin ? 120 : 200,
-        damping: hasOrigin ? 15 : 20,
-        mass: hasOrigin ? 0.8 : 1,
-        delay: isNew && !hasOrigin ? 0.2 : 0,
+        stiffness: hasOrigin ? 80 : 200,
+        damping: hasOrigin ? 12 : 20,
+        mass: hasOrigin ? 1.5 : 1,
+        delay: hasOrigin ? 0.3 : 0,
       }}
     >
       {/* Glow effect for HEAD */}
@@ -117,7 +116,9 @@ export function CommitNode({
       {/* Branch labels */}
       {branchLabels.map((label, i) => {
         const isHeadBranch = label === headBranchName;
-        const displayText = isHeadBranch ? `HEAD → ${label}` : label;
+        const maxDisplayLength = 35;
+        const truncatedLabel = label.length > maxDisplayLength ? label.slice(0, maxDisplayLength - 3) + "..." : label;
+        const displayText = isHeadBranch ? `HEAD → ${truncatedLabel}` : truncatedLabel;
         const width = displayText.length * 6 + 16;
         
         return (

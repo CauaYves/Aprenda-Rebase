@@ -8,12 +8,12 @@ import type { RepositorySnapshot } from "@/hooks/useRepository";
 
 // Color palette for branches
 const BRANCH_COLORS: Record<string, string> = {
-  main: "#22d3ee",      // Cyan
-  master: "#22d3ee",
-  feature: "#a78bfa",   // Purple
-  "feature-a": "#fb923c", // Orange
-  "feature-b": "#34d399",  // Green
-  develop: "#f472b6",    // Pink
+  develop: "#2dd4bf", // Cyan
+  "user/jhon/1243-integracao": "#a78bfa",   // Purple
+  "user/eu/15844-fix-autenticacao/17400-correcao-token": "#f472b6", // Pink
+  "user/eu/16200-refatoracao-ui/18500-atualizar-botoes": "#fbbf24", // Yellow
+  "user/eu/16500-otimizacao/19001-a": "#fb923c", // Orange
+  "user/eu/16500-otimizacao/19002-b": "#34d399",  // Green
   hotfix: "#ef4444",     // Red
   release: "#facc15",    // Yellow
 };
@@ -79,10 +79,10 @@ export function GitGraph({ snapshot }: { snapshot: RepositorySnapshot }) {
 
     // Determine branch assignments for columns
     const branchNames = [...new Set(commits.map((c) => c.branch).filter(Boolean) as string[])];
-    // Ensure 'main' is first
+    // Ensure 'develop' is first
     branchNames.sort((a, b) => {
-      if (a === "main" || a === "master") return -1;
-      if (b === "main" || b === "master") return 1;
+      if (a === "develop" || a === "master") return -1;
+      if (b === "develop" || b === "master") return 1;
       return a.localeCompare(b);
     });
 
@@ -120,7 +120,7 @@ export function GitGraph({ snapshot }: { snapshot: RepositorySnapshot }) {
         : head.commitId;
 
     // Layout parameters
-    const colSpacing = 160;
+    const colSpacing = 280;
     const rowSpacing = 130;
     const paddingX = 100;
     const paddingY = 90;
@@ -170,7 +170,7 @@ export function GitGraph({ snapshot }: { snapshot: RepositorySnapshot }) {
         if (!fromPos) continue;
 
         const parentCommit = commitMap.get(parentId);
-        const color = getBranchColor(commit.branch || parentCommit?.branch || "main");
+        const color = getBranchColor(commit.branch || parentCommit?.branch || "develop");
 
         edges.push({
           fromId: parentId,
@@ -250,7 +250,7 @@ export function GitGraph({ snapshot }: { snapshot: RepositorySnapshot }) {
               id={node.id}
               message={node.commit.message}
               isHead={node.id === headCommitId}
-              branchColor={getBranchColor(node.commit.branch || "main")}
+              branchColor={getBranchColor(node.commit.branch || "develop")}
               branchLabels={node.branchLabels}
               headBranchName={headBranchName}
               originX={node.originX}

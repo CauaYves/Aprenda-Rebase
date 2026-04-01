@@ -29,7 +29,7 @@ export class GitRepository {
     this.state = {
       commits: new Map(),
       branches: [],
-      head: { type: "branch", name: "main" },
+      head: { type: "branch", name: "develop" },
       commitOrder: [],
     };
   }
@@ -204,10 +204,10 @@ export class GitRepository {
   deleteBranch(name: string): CommandResult {
     this.saveState();
 
-    if (name === "main") {
+    if (name === "develop") {
       return {
         success: false,
-        message: `erro: Não é possível deletar a branch 'main'`,
+        message: `erro: Não é possível deletar a branch 'develop'`,
         type: "error",
       };
     }

@@ -28,7 +28,7 @@ const tutorialInitialState: SerializableRepository = {
 };
 
 export function WelcomeModal({ isOpen, onClose }: WelcomeModalProps) {
-  const { snapshot, isAnimating, runCommand, reset, onStepAnimationComplete } = useRepository(tutorialInitialState);
+  const { snapshot, runCommand, reset } = useRepository(tutorialInitialState);
   const [hasRebased, setHasRebased] = useState(false);
 
   const handleRunRebase = () => {
@@ -91,14 +91,14 @@ export function WelcomeModal({ isOpen, onClose }: WelcomeModalProps) {
                 <div className="space-y-4">
                   <button
                     onClick={handleRunRebase}
-                    disabled={isAnimating || hasRebased}
+                    disabled={hasRebased}
                     className="w-full px-6 py-2 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold rounded transition-colors"
                   >
-                    {isAnimating ? "Processando..." : hasRebased ? "Rebase Concluído ✓" : "▶ Executar `git rebase develop`"}
+                    {hasRebased ? "Rebase Concluído ✓" : "▶ Executar `git rebase develop`"}
                   </button>
                   <button
                     onClick={handleReset}
-                    disabled={isAnimating}
+                    disabled={false}
                     className="w-full px-6 py-2 bg-transparent border border-gray-600 hover:border-gray-400 text-white rounded transition-colors"
                   >
                     ↺ Reiniciar Animação
@@ -122,7 +122,7 @@ export function WelcomeModal({ isOpen, onClose }: WelcomeModalProps) {
                  Demonstração Interativa
                </div>
                <div className="w-full h-full border border-white/10 rounded overflow-hidden relative bg-[#0f0f17]">
-                 <GitGraph snapshot={snapshot} onStepAnimationComplete={onStepAnimationComplete} />
+                 <GitGraph snapshot={snapshot} />
                </div>
             </div>
           </motion.div>

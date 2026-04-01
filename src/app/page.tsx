@@ -30,7 +30,7 @@ export default function Home() {
     resetLevel,
   } = useLevel(1);
 
-  const { snapshot, isAnimating, runCommand, executeInteractiveRebase, reset, getRepo, onStepAnimationComplete } =
+  const { snapshot, runCommand, executeInteractiveRebase, reset, getRepo } =
     useRepository(currentLevel?.initialState);
 
   const {
@@ -268,7 +268,7 @@ export default function Home() {
               </span>
             </div>
             <div className="h-[calc(100%-40px)]">
-              <GitGraph snapshot={snapshot} onStepAnimationComplete={onStepAnimationComplete} />
+              <GitGraph snapshot={snapshot} />
             </div>
           </div>
         </motion.div>
@@ -285,7 +285,6 @@ export default function Home() {
             onCommand={handleCommand}
             getPreviousCommand={getPreviousCommand}
             getNextCommand={getNextCommand}
-            disabled={isAnimating}
           />
         </motion.div>
       </div>

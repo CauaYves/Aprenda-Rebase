@@ -11,7 +11,6 @@ type CommitNodeProps = {
   branchColor: string;
   branchLabels?: string[];
   headBranchName?: string;
-  isFading?: boolean;
 };
 
 export function CommitNode({
@@ -23,30 +22,17 @@ export function CommitNode({
   branchColor,
   branchLabels = [],
   headBranchName,
-  isFading = false,
 }: CommitNodeProps) {
   const radius = isHead ? 18 : 14;
 
   return (
     <motion.g
       initial={{ scale: 0, opacity: 0, x, y }}
-      animate={{
-        scale: isFading ? 0.85 : 1,
-        opacity: isFading ? 0.15 : 1,
-        x,
-        y,
-        filter: isFading ? "grayscale(1)" : "grayscale(0)",
-      }}
-      transition={{
-        type: "spring",
-        stiffness: 200,
-        damping: 20,
-        mass: 1,
-        filter: { duration: 0.3 },
-      }}
+      animate={{ scale: 1, opacity: 1, x, y }}
+      transition={{ type: "spring", stiffness: 200, damping: 20 }}
     >
       {/* Glow effect for HEAD */}
-      {isHead && !isFading && (
+      {isHead && (
         <motion.circle
           r={radius + 8}
           fill="none"
@@ -73,9 +59,9 @@ export function CommitNode({
         fill={`color-mix(in oklch, ${branchColor} 20%, var(--commit-bg, #1a1b2e))`}
         stroke={branchColor}
         strokeWidth={isHead ? 3 : 2}
-        whileHover={isFading ? undefined : { scale: 1.15, strokeWidth: 3 }}
+        whileHover={{ scale: 1.15, strokeWidth: 3 }}
         transition={{ duration: 0.2 }}
-        style={{ cursor: isFading ? "default" : "pointer" }}
+        style={{ cursor: "pointer" }}
       />
 
       {/* Inner dot */}
@@ -106,7 +92,7 @@ export function CommitNode({
       </text>
 
       {/* Branch labels */}
-      {!isFading && branchLabels.map((label, i) => {
+      {branchLabels.map((label, i) => {
         const isHeadBranch = label === headBranchName;
         const maxDisplayLength = 35;
         const truncatedLabel = label.length > maxDisplayLength ? label.slice(0, maxDisplayLength - 3) + "..." : label;

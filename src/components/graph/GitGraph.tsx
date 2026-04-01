@@ -1,24 +1,22 @@
 "use client";
 
-import { useMemo, useState, useCallback, useRef, useEffect } from "react";
+import { useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CommitNode } from "./CommitNode";
 import { BranchLine } from "./BranchLine";
-import { RebaseAnimationOverlay } from "./RebaseAnimationOverlay";
-import type { RebaseAnimation } from "./RebaseAnimationOverlay";
 import type { RepositorySnapshot } from "@/hooks/useRepository";
 
 // Color palette for branches
 const BRANCH_COLORS: Record<string, string> = {
-  develop: "#2dd4bf", // Cyan
-  "user/jhon/1243-integracao": "#a78bfa",   // Purple
-  "user/eu/15844-fix-autenticacao/17400-correcao-token": "#f472b6", // Pink
-  "user/eu/16001-epic-payment/18002-adicionar-stripe": "#c084fc", // Lavender
-  "user/eu/16200-refatoracao-ui/18500-atualizar-botoes": "#fbbf24", // Yellow
-  "user/eu/16500-otimizacao/19001-a": "#fb923c", // Orange
-  "user/eu/16500-otimizacao/19002-b": "#34d399",  // Green
-  hotfix: "#ef4444",     // Red
-  release: "#facc15",    // Yellow
+  develop: "#2dd4bf",
+  "user/jhon/1243-integracao": "#a78bfa",
+  "user/eu/15844-fix-autenticacao/17400-correcao-token": "#f472b6",
+  "user/eu/16001-epic-payment/18002-adicionar-stripe": "#c084fc",
+  "user/eu/16200-refatoracao-ui/18500-atualizar-botoes": "#fbbf24",
+  "user/eu/16500-otimizacao/19001-a": "#fb923c",
+  "user/eu/16500-otimizacao/19002-b": "#34d399",
+  hotfix: "#ef4444",
+  release: "#facc15",
 };
 
 const DEFAULT_COLORS = [
@@ -41,7 +39,6 @@ type CommitData = {
   parents: string[];
   timestamp: number;
   branch?: string;
-  copiedFrom?: string;
 };
 
 type LayoutNode = {
@@ -64,16 +61,7 @@ type LayoutEdge = {
   key: string;
 };
 
-type GitGraphProps = {
-  snapshot: RepositorySnapshot;
-  onStepAnimationComplete?: () => void;
-};
-
-export function GitGraph({ snapshot, onStepAnimationComplete }: GitGraphProps) {
-  const prevSnapshotRef = useRef<RepositorySnapshot | null>(null);
-  const [animationQueue, setAnimationQueue] = useState<RebaseAnimation[]>([]);
-  const [fadingCommitIds, setFadingCommitIds] = useState<Set<string>>(new Set());
-
+export function GitGraph({ snapshot }: { snapshot: RepositorySnapshot }) {
   const layout = useMemo(() => {
     const commits = snapshot.commits;
     const branches = snapshot.branches;
@@ -179,107 +167,8 @@ export function GitGraph({ snapshot, onStepAnimationComplete }: GitGraphProps) {
     const width = Math.max(paddingX * 2 + maxCol * colSpacing + 60, 300);
     const height = Math.max(paddingY * 2 + (topoOrder.length - 1) * rowSpacing + 60, 200);
 
-    return { nodes, edges, width, height, positions };
+    return { nodes, edges, width, height };
   }, [snapshot]);
-
-  // Detect new commits with copiedFrom and generate animation queue
-  useEffect(() => {
-    const prev = prevSnapshotRef.current;
-    prevSnapshotRef.current = snapshot;
-
-    if (!prev) return;
-
-    // Find new commits in this snapshot that have copiedFrom
-    const prevIds = new Set(prev.commits.map((c) => c.id));
-    const newCopiedCommits = snapshot.commits.filter(
-      (c) => !prevIds.has(c.id) && c.copiedFrom
-    );
-
-    if (newCopiedCommits.length === 0) {
-      // No new rebased commits — just signal done immediately
-      onStepAnimationComplete?.();
-      return;
-    }
-
-    // Build prev layout positions for origin lookup
-    const prevCommitMap = new Map(prev.commits.map((c) => [c.id, c]));
-    const prevBranchNames = [...new Set(prev.commits.map((c) => c.branch).filter(Boolean) as string[])];
-    prevBranchNames.sort((a, b) => {
-      if (a === "develop" || a === "master") return -1;
-      if (b === "develop" || b === "master") return 1;
-      return a.localeCompare(b);
-    });
-    const prevBranchColumnMap = new Map<string, number>();
-    prevBranchNames.forEach((name, i) => prevBranchColumnMap.set(name, i));
-
-    const prevVisited = new Set<string>();
-    const prevTopo: string[] = [];
-    function prevDfs(id: string) {
-      if (prevVisited.has(id)) return;
-      prevVisited.add(id);
-      const c = prevCommitMap.get(id);
-      if (!c) return;
-      for (const pid of c.parents) prevDfs(pid);
-      prevTopo.push(id);
-    }
-    for (const b of prev.branches) prevDfs(b.tip);
-    for (const c of prev.commits) prevDfs(c.id);
-
-    const colSpacing = 280;
-    const rowSpacing = 130;
-    const paddingX = 100;
-    const paddingY = 90;
-
-    const prevPositions = new Map<string, { x: number; y: number }>();
-    prevTopo.forEach((id, i) => {
-      const c = prevCommitMap.get(id);
-      if (!c) return;
-      const col = c.branch ? (prevBranchColumnMap.get(c.branch) ?? 0) : 0;
-      prevPositions.set(id, {
-        x: paddingX + col * colSpacing,
-        y: paddingY + i * rowSpacing,
-      });
-    });
-
-    // Build animation queue
-    const queue: RebaseAnimation[] = [];
-    const fadingIds = new Set<string>();
-
-    for (const newCommit of newCopiedCommits) {
-      const originId = newCommit.copiedFrom!;
-      const originPos = prevPositions.get(originId);
-      const destPos = layout.positions?.get(newCommit.id);
-
-      if (!originPos || !destPos) continue;
-
-      fadingIds.add(originId);
-
-      queue.push({
-        commitId: originId,
-        newCommitId: newCommit.id,
-        fromX: originPos.x,
-        fromY: originPos.y,
-        toX: destPos.x,
-        toY: destPos.y,
-        message: newCommit.message,
-        color: getBranchColor(newCommit.branch || "develop"),
-        duration: 700,
-      });
-    }
-
-    if (queue.length > 0) {
-      setFadingCommitIds(fadingIds);
-      setAnimationQueue(queue);
-    } else {
-      onStepAnimationComplete?.();
-    }
-  }, [snapshot]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleOverlayComplete = useCallback(() => {
-    setAnimationQueue([]);
-    setFadingCommitIds(new Set());
-    onStepAnimationComplete?.();
-  }, [onStepAnimationComplete]);
 
   const headCommitId = useMemo(() => {
     const head = snapshot.head;
@@ -302,7 +191,6 @@ export function GitGraph({ snapshot, onStepAnimationComplete }: GitGraphProps) {
         animate={{ opacity: 1 }}
         transition={{ duration: 0.4 }}
       >
-        {/* Grid background pattern */}
         <defs>
           <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
             <path
@@ -315,7 +203,6 @@ export function GitGraph({ snapshot, onStepAnimationComplete }: GitGraphProps) {
         </defs>
         <rect width="100%" height="100%" fill="url(#grid)" />
 
-        {/* Draw edges first (behind nodes) */}
         <AnimatePresence>
           {layout.edges.map((edge) => (
             <BranchLine
@@ -329,7 +216,6 @@ export function GitGraph({ snapshot, onStepAnimationComplete }: GitGraphProps) {
           ))}
         </AnimatePresence>
 
-        {/* Draw nodes */}
         <AnimatePresence>
           {layout.nodes.map((node) => (
             <CommitNode
@@ -342,16 +228,9 @@ export function GitGraph({ snapshot, onStepAnimationComplete }: GitGraphProps) {
               branchColor={getBranchColor(node.commit.branch || "develop")}
               branchLabels={node.branchLabels}
               headBranchName={headBranchName}
-              isFading={fadingCommitIds.has(node.id)}
             />
           ))}
         </AnimatePresence>
-
-        {/* Ghost node animation overlay */}
-        <RebaseAnimationOverlay
-          queue={animationQueue}
-          onAnimationComplete={handleOverlayComplete}
-        />
       </motion.svg>
     </div>
   );

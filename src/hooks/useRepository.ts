@@ -8,9 +8,6 @@ export type RepositorySnapshot = SerializableRepository;
 
 export function useRepository(initialState?: SerializableRepository) {
   const repoRef = useRef<GitRepository | null>(null);
-  const [isAnimating, setIsAnimating] = useState(false);
-  const stepsQueueRef = useRef<SerializableRepository[]>([]);
-  const stepResolverRef = useRef<(() => void) | null>(null);
 
   const [snapshot, setSnapshot] = useState<RepositorySnapshot>(() => {
     const repo = initialState
@@ -25,37 +22,6 @@ export function useRepository(initialState?: SerializableRepository) {
       setSnapshot(repoRef.current.toSerializable());
     }
   }, []);
-
-  // Called by GitGraph when a step's animation is complete
-  const onStepAnimationComplete = useCallback(() => {
-    if (stepResolverRef.current) {
-      stepResolverRef.current();
-      stepResolverRef.current = null;
-    }
-  }, []);
-
-  const processSteps = useCallback(async (steps: SerializableRepository[]) => {
-    setIsAnimating(true);
-
-    for (const step of steps) {
-      setSnapshot(step);
-
-      // Wait for the GitGraph overlay to call onStepAnimationComplete
-      await new Promise<void>((resolve) => {
-        stepResolverRef.current = resolve;
-        // Safety timeout: if no animation callback arrives in 5s, advance anyway
-        setTimeout(() => {
-          if (stepResolverRef.current === resolve) {
-            stepResolverRef.current = null;
-            resolve();
-          }
-        }, 5000);
-      });
-    }
-
-    updateSnapshot();
-    setIsAnimating(false);
-  }, [updateSnapshot]);
 
   const runCommand = useCallback(
     (input: string): CommandResult => {
@@ -81,16 +47,10 @@ export function useRepository(initialState?: SerializableRepository) {
       }
 
       const result = executeCommand(repoRef.current, parsed);
-      
-      if (result.steps && result.steps.length > 0) {
-        processSteps(result.steps);
-      } else {
-        updateSnapshot();
-      }
-      
+      updateSnapshot();
       return result;
     },
-    [updateSnapshot, processSteps]
+    [updateSnapshot]
   );
 
   const executeInteractiveRebase = useCallback(
@@ -99,16 +59,10 @@ export function useRepository(initialState?: SerializableRepository) {
         return { success: false, message: "Repository not initialized", type: "error" };
       }
       const result = repoRef.current.rebaseInteractive(onto, entries);
-      
-      if (result.steps && result.steps.length > 0) {
-        processSteps(result.steps);
-      } else {
-        updateSnapshot();
-      }
-      
+      updateSnapshot();
       return result;
     },
-    [updateSnapshot, processSteps]
+    [updateSnapshot]
   );
 
   const reset = useCallback(
@@ -123,11 +77,9 @@ export function useRepository(initialState?: SerializableRepository) {
 
   return {
     snapshot,
-    isAnimating,
     runCommand,
     executeInteractiveRebase,
     reset,
     getRepo,
-    onStepAnimationComplete,
   };
 }

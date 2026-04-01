@@ -52,11 +52,39 @@ export class GitRepository {
   }
 
   toSerializable(): SerializableRepository {
+    // Garbage collect: only include commits reachable from branch tips or HEAD
+    const reachable = new Set<string>();
+    const walk = (id: string) => {
+      if (reachable.has(id)) return;
+      reachable.add(id);
+      const commit = this.state.commits.get(id);
+      if (commit) {
+        for (const parentId of commit.parents) {
+          walk(parentId);
+        }
+      }
+    };
+
+    // Walk from all branch tips
+    for (const branch of this.state.branches) {
+      walk(branch.tip);
+    }
+    // Walk from HEAD if detached
+    if (this.state.head.type === "detached") {
+      walk(this.state.head.commitId);
+    }
+
+    const reachableCommits = Array.from(this.state.commits.values())
+      .filter((c) => reachable.has(c.id))
+      .map((c) => ({ ...c }));
+
+    const reachableOrder = this.state.commitOrder.filter((id) => reachable.has(id));
+
     return {
-      commits: Array.from(this.state.commits.values()).map((c) => ({ ...c })),
+      commits: reachableCommits,
       branches: this.state.branches.map((b) => ({ ...b })),
       head: { ...this.state.head },
-      commitOrder: [...this.state.commitOrder],
+      commitOrder: reachableOrder,
     };
   }
 

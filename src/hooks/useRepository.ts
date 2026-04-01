@@ -9,6 +9,9 @@ export type RepositorySnapshot = SerializableRepository;
 export function useRepository(initialState?: SerializableRepository) {
   const repoRef = useRef<GitRepository | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
+  const stepsQueueRef = useRef<SerializableRepository[]>([]);
+  const stepResolverRef = useRef<(() => void) | null>(null);
+
   const [snapshot, setSnapshot] = useState<RepositorySnapshot>(() => {
     const repo = initialState
       ? GitRepository.fromSerializable(initialState)
@@ -23,12 +26,33 @@ export function useRepository(initialState?: SerializableRepository) {
     }
   }, []);
 
+  // Called by GitGraph when a step's animation is complete
+  const onStepAnimationComplete = useCallback(() => {
+    if (stepResolverRef.current) {
+      stepResolverRef.current();
+      stepResolverRef.current = null;
+    }
+  }, []);
+
   const processSteps = useCallback(async (steps: SerializableRepository[]) => {
     setIsAnimating(true);
+
     for (const step of steps) {
       setSnapshot(step);
-      await new Promise((resolve) => setTimeout(resolve, 1200)); // 1.2s delay per rewrite step
+
+      // Wait for the GitGraph overlay to call onStepAnimationComplete
+      await new Promise<void>((resolve) => {
+        stepResolverRef.current = resolve;
+        // Safety timeout: if no animation callback arrives in 5s, advance anyway
+        setTimeout(() => {
+          if (stepResolverRef.current === resolve) {
+            stepResolverRef.current = null;
+            resolve();
+          }
+        }, 5000);
+      });
     }
+
     updateSnapshot();
     setIsAnimating(false);
   }, [updateSnapshot]);
@@ -48,7 +72,6 @@ export function useRepository(initialState?: SerializableRepository) {
         };
       }
 
-      // Handle interactive rebase specially - return marker
       if (parsed.type === "rebase-interactive") {
         return {
           success: true,
@@ -67,7 +90,7 @@ export function useRepository(initialState?: SerializableRepository) {
       
       return result;
     },
-    [updateSnapshot]
+    [updateSnapshot, processSteps]
   );
 
   const executeInteractiveRebase = useCallback(
@@ -85,7 +108,7 @@ export function useRepository(initialState?: SerializableRepository) {
       
       return result;
     },
-    [updateSnapshot]
+    [updateSnapshot, processSteps]
   );
 
   const reset = useCallback(
@@ -105,5 +128,6 @@ export function useRepository(initialState?: SerializableRepository) {
     executeInteractiveRebase,
     reset,
     getRepo,
+    onStepAnimationComplete,
   };
 }

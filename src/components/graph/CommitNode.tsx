@@ -11,8 +11,7 @@ type CommitNodeProps = {
   branchColor: string;
   branchLabels?: string[];
   headBranchName?: string;
-  originX?: number;
-  originY?: number;
+  isFading?: boolean;
 };
 
 export function CommitNode({
@@ -24,37 +23,30 @@ export function CommitNode({
   branchColor,
   branchLabels = [],
   headBranchName,
-  originX,
-  originY,
+  isFading = false,
 }: CommitNodeProps) {
   const radius = isHead ? 18 : 14;
 
-  const hasOrigin = originX !== undefined && originY !== undefined;
-  
-  const initialProps = hasOrigin
-    ? {
-        scale: 1,
-        opacity: 0,
-        x: originX,
-        y: originY,
-        zIndex: 50,
-      }
-    : { scale: 0, opacity: 0, x, y };
-
   return (
     <motion.g
-      initial={initialProps}
-      animate={{ scale: 1, opacity: 1, x, y }}
+      initial={{ scale: 0, opacity: 0, x, y }}
+      animate={{
+        scale: isFading ? 0.85 : 1,
+        opacity: isFading ? 0.15 : 1,
+        x,
+        y,
+        filter: isFading ? "grayscale(1)" : "grayscale(0)",
+      }}
       transition={{
         type: "spring",
-        stiffness: hasOrigin ? 80 : 200,
-        damping: hasOrigin ? 12 : 20,
-        mass: hasOrigin ? 1.5 : 1,
-        delay: hasOrigin ? 0.3 : 0,
+        stiffness: 200,
+        damping: 20,
+        mass: 1,
+        filter: { duration: 0.3 },
       }}
     >
       {/* Glow effect for HEAD */}
-      {isHead && (
+      {isHead && !isFading && (
         <motion.circle
           r={radius + 8}
           fill="none"
@@ -81,9 +73,9 @@ export function CommitNode({
         fill={`color-mix(in oklch, ${branchColor} 20%, var(--commit-bg, #1a1b2e))`}
         stroke={branchColor}
         strokeWidth={isHead ? 3 : 2}
-        whileHover={{ scale: 1.15, strokeWidth: 3 }}
+        whileHover={isFading ? undefined : { scale: 1.15, strokeWidth: 3 }}
         transition={{ duration: 0.2 }}
-        style={{ cursor: "pointer" }}
+        style={{ cursor: isFading ? "default" : "pointer" }}
       />
 
       {/* Inner dot */}
@@ -114,7 +106,7 @@ export function CommitNode({
       </text>
 
       {/* Branch labels */}
-      {branchLabels.map((label, i) => {
+      {!isFading && branchLabels.map((label, i) => {
         const isHeadBranch = label === headBranchName;
         const maxDisplayLength = 35;
         const truncatedLabel = label.length > maxDisplayLength ? label.slice(0, maxDisplayLength - 3) + "..." : label;

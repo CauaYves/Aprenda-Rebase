@@ -28,7 +28,7 @@ const tutorialInitialState: SerializableRepository = {
 };
 
 export function WelcomeModal({ isOpen, onClose }: WelcomeModalProps) {
-  const { snapshot, isAnimating, runCommand, reset } = useRepository(tutorialInitialState);
+  const { snapshot, isAnimating, runCommand, reset, onStepAnimationComplete } = useRepository(tutorialInitialState);
   const [hasRebased, setHasRebased] = useState(false);
 
   const handleRunRebase = () => {
@@ -122,7 +122,7 @@ export function WelcomeModal({ isOpen, onClose }: WelcomeModalProps) {
                  Demonstração Interativa
                </div>
                <div className="w-full h-full border border-white/10 rounded overflow-hidden relative bg-[#0f0f17]">
-                 <GitGraph snapshot={snapshot} />
+                 <GitGraph snapshot={snapshot} onStepAnimationComplete={onStepAnimationComplete} />
                </div>
             </div>
           </motion.div>
